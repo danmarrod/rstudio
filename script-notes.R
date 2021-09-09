@@ -3,6 +3,14 @@
 # CARGAMOS LOS DATOS
 # ------------------------------------------------------------------
 
+# Preparamos el espacio de trabajo y reseteamos objetos cargados
+getwd()
+setwd("E:/FID/rstudio/")
+getwd()
+ls()
+rm(list = ls()) 
+ls()
+
 # Evaluate test notes
 marks <- read.csv("./data/marks.csv", sep=",", head = TRUE)
 
@@ -537,5 +545,57 @@ featurePlot(x = filter_marks[, regVar],
 # Si cargamos como read.csv en vez de read.csv2, marca los nulos como NA y si los muestra bien.
 
 
+# ------------------------------------------------------------------------
+# PRUEBA 3: ANALISIS NO SUPERVISADO
+# Clustering
+# ------------------------------------------------------------------------
+
+# Cargamos la librerías que usaremos en esta sección
+library(tidyverse)
+library(caret)
+
+# Cargamos los datos completos por defecto
+marks <- read.csv("./data/marks-v1.0.csv", sep=",", head = TRUE)
+
+# Preparamos el dataset. Limpiamos valores nulos y filtramos columnas no necesarias para este problema concreto
+regVar <- c("T1", "T2", "T3","T4", "Total_T", "Total_D", "Deliveries", "Extras", "Total_TED", "Marks")
+marks[is.na(marks)] <- 0
+cluster_marks <- marks[, regVar]
+
+# Comprobamos dataset
+head(cluster_marks)
+dim(cluster_marks)
+str(cluster_marks)
+
+# Fijamos a tres decimales las columnas numéricas
+#Cambiar tipo de columnas: cluster_marks <- format(round(cluster_marks, 3), nsmall = 3)
+# TODO: El siguiente comando no cambia cuando las decimales son inferiores a 3, como el caso de T1
+cluster_marks <- cluster_marks %>% mutate(across(where(is.numeric), round, 3))
+
+km_puntos <- kmeans(cluster_marks, center=3, nstar=20)
+km_puntos$cluster
+print(km_puntos)
+plot(cluster_marks, col=km_puntos$cluster, main="Tres clusters")    
 
 
+# Vamos a analizar primeramente la dimensionalidad de las variables y si podemos reducirlas con PCA
+# TODO: Profundizar en esta parte si da tiempo
+head(cluster_marks)
+str(cluster_marks)
+cluster_marks
+par(mar=c(1,1,1,1))
+plot(cluster_marks)
+
+iris_pca <- prcomp(cluster_marks[1:10], scale=FALSE, center=TRUE)
+iris_pca
+
+summary(iris_pca)
+plot(iris_pca)
+biplot(iris_pca)
+
+iris_pca_escalado <- prcomp(cluster_marks[1:10], scale=TRUE, center=TRUE)
+summary(iris_pca_escalado)
+biplot(iris_pca_escalado)
+
+
+# 
