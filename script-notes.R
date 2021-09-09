@@ -558,20 +558,120 @@ library(caret)
 marks <- read.csv("./data/marks-v1.0.csv", sep=",", head = TRUE)
 
 # Preparamos el dataset. Limpiamos valores nulos y filtramos columnas no necesarias para este problema concreto
-regVar <- c("T1", "T2", "T3","T4", "Total_T", "Total_D", "Deliveries", "Extras", "Total_TED", "Marks")
+regVar <- c("T1", "T2", "T3","T4", "Total_T", "Total_D", "Deliveries", "Extras")
 marks[is.na(marks)] <- 0
 cluster_marks <- marks[, regVar]
-
-# Comprobamos dataset
-head(cluster_marks)
-dim(cluster_marks)
-str(cluster_marks)
 
 # Fijamos a tres decimales las columnas numéricas
 #Cambiar tipo de columnas: cluster_marks <- format(round(cluster_marks, 3), nsmall = 3)
 # TODO: El siguiente comando no cambia cuando las decimales son inferiores a 3, como el caso de T1
 cluster_marks <- cluster_marks %>% mutate(across(where(is.numeric), round, 3))
 
+# Comprobamos dataset
+head(cluster_marks)
+dim(cluster_marks)
+str(cluster_marks)
+
+
+# Creamos un clúster con Kmeans
+-----------------------------------
+  
+# Como la magnitud de los valores varía entre variables, las escalamos para normalizarlas.
+datos <- scale(cluster_marks)
+
+install.packages("factoextra")
+library(factoextra)
+fviz_nbclust(x = datos, FUNcluster = kmeans, method = "wss", k.max = 15, 
+             diss = get_dist(datos, method = "euclidean"), nstart = 50) 
+
+# Observamos que con K=4 o 5 se obtienen buenos resultados.
+
+# El paquete factoextra permite obtener visualizaciones de las agrupaciones resultantes.
+# Si el número de variables (dimensionalidad) es mayor de 2, automáticamente realiza un PCA y 
+# representa las dos primeras componentes principales.
+
+set.seed(123)
+km_clusters <- kmeans(x = datos, centers = 4, nstart = 50)
+
+# Las funciones del paquete factoextra emplean el nombre de las filas del
+# dataframe que contiene los datos como identificador de las observaciones.
+# Esto permite añadir labels a los gráficos.
+fviz_cluster(object = km_clusters, data = datos, show.clust.cent = TRUE,
+             ellipse.type = "euclid", star.plot = TRUE, repel = TRUE) +
+  labs(title = "Resultados clustering K-means") +
+  theme_bw() +
+  theme(legend.position = "none")  
+
+
+
+# Probamos ahora con K-medoids clustering (PAM)
+-----------------------------------------------
+  
+# Este algoritmo es más robusto que Kmeans, sobre todo si hay ruido. Necesita saber de primera mano el nºK
+# Más detalle en https://rpubs.com/Joaquin_AR/310338
+
+library(cluster)
+
+# En este caso, dado que se sospecha de la presencia de outliers, se emplea la distancia de Manhattan como medida de similitud
+fviz_nbclust(x = datos, FUNcluster = pam, method = "wss", k.max = 15,
+               diss = dist(datos, method = "manhattan"))
+
+# En este caso obtenemos unos buenos resultados con K=5
+set.seed(123)
+pam_clusters <- pam(x = datos, k = 4, metric = "manhattan")
+pam_clusters
+
+# El objeto devuelto por pam() contiene entre otra información: las observaciones que finalmente se han seleccionado 
+# como medoids ($medoids) y el cluster al que se ha asignado cada observación ($clustering).
+
+fviz_cluster(object = pam_clusters, data = datos, ellipse.type = "t",
+             repel = TRUE) +
+  theme_bw() +
+  labs(title = "Resultados clustering PAM") +
+  theme(legend.position = "none")
+
+
+
+# Validamos la eficacia de ambos algoritmos
+--------------------------------------------------
+  
+# Utilizamos las funciones eclust() y fviz_silhouette() del paquete factoextra() 
+# para de forma sencilla los coeficientes de Silhoutte 
+# La función eclust(), con FUNcluster permite, como CARET, aplicar varios algoritmos de clustering
+# Internamente llama a las funciones kmeans, hclust, pam, etc
+
+# KMEANS
+km_clusters <- eclust(x = datos, FUNcluster = "kmeans", k = 4, seed = 123,
+                      hc_metric = "manhattan", nstart = 50, graph = FALSE)
+
+fviz_silhouette(sil.obj = km_clusters, print.summary = TRUE, palette = "jco",
+                ggtheme = theme_classic()) 
+
+# Media silhouette por cluster
+km_clusters$silinfo$clus.avg.widths
+
+# Coeficiente silhouette para cada observación
+head(km_clusters$silinfo$widths)
+
+
+# PAM
+
+pam_clusters <- eclust(x = datos, FUNcluster = "pam", k = 4, seed = 123,
+                      hc_metric = "manhattan", nstart = 50, graph = FALSE)
+
+fviz_silhouette(sil.obj = pam_clusters, print.summary = TRUE, palette = "jco",
+                ggtheme = theme_classic())
+
+# Media silhouette por cluster
+pam_clusters$silinfo$clus.avg.widths
+
+# Coeficiente silhouette para cada observación
+head(pam_clusters$silinfo$widths)
+
+
+
+# Creamos un clúster como en clase
+-----------------------------------
 km_puntos <- kmeans(cluster_marks, center=3, nstar=20)
 km_puntos$cluster
 print(km_puntos)
