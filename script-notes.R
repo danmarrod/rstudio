@@ -572,9 +572,9 @@ head(cluster_marks)
 dim(cluster_marks)
 str(cluster_marks)
 
-
-# Creamos un clúster con Kmeans
------------------------------------
+# -----------------------------------
+# Clustering con KMEANs
+# -----------------------------------
   
 # Como la magnitud de los valores varía entre variables, las escalamos para normalizarlas.
 datos <- scale(cluster_marks)
@@ -591,7 +591,7 @@ fviz_nbclust(x = datos, FUNcluster = kmeans, method = "wss", k.max = 15,
 # representa las dos primeras componentes principales.
 
 set.seed(123)
-km_clusters <- kmeans(x = datos, centers = 4, nstart = 50)
+km_clusters <- kmeans(x = datos, centers = 5, nstart = 50)
 
 # Las funciones del paquete factoextra emplean el nombre de las filas del
 # dataframe que contiene los datos como identificador de las observaciones.
@@ -603,13 +603,11 @@ fviz_cluster(object = km_clusters, data = datos, show.clust.cent = TRUE,
   theme(legend.position = "none")  
 
 
-
-# Probamos ahora con K-medoids clustering (PAM)
------------------------------------------------
+# -----------------------------------------------
+# Clustering con K-MEDOIDS (PAM)
+# -----------------------------------------------
   
 # Este algoritmo es más robusto que Kmeans, sobre todo si hay ruido. Necesita saber de primera mano el nºK
-# Más detalle en https://rpubs.com/Joaquin_AR/310338
-
 library(cluster)
 
 # En este caso, dado que se sospecha de la presencia de outliers, se emplea la distancia de Manhattan como medida de similitud
@@ -618,7 +616,7 @@ fviz_nbclust(x = datos, FUNcluster = pam, method = "wss", k.max = 15,
 
 # En este caso obtenemos unos buenos resultados con K=5
 set.seed(123)
-pam_clusters <- pam(x = datos, k = 4, metric = "manhattan")
+pam_clusters <- pam(x = datos, k = 5, metric = "manhattan")
 pam_clusters
 
 # El objeto devuelto por pam() contiene entre otra información: las observaciones que finalmente se han seleccionado 
@@ -631,9 +629,9 @@ fviz_cluster(object = pam_clusters, data = datos, ellipse.type = "t",
   theme(legend.position = "none")
 
 
-
-# Validamos la eficacia de ambos algoritmos
---------------------------------------------------
+# --------------------------------------------
+# VALIDAMOS la eficacia de ambos algoritmos
+# --------------------------------------------
   
 # Utilizamos las funciones eclust() y fviz_silhouette() del paquete factoextra() 
 # para de forma sencilla los coeficientes de Silhoutte 
@@ -641,8 +639,8 @@ fviz_cluster(object = pam_clusters, data = datos, ellipse.type = "t",
 # Internamente llama a las funciones kmeans, hclust, pam, etc
 
 # KMEANS
-km_clusters <- eclust(x = datos, FUNcluster = "kmeans", k = 4, seed = 123,
-                      hc_metric = "manhattan", nstart = 50, graph = FALSE)
+km_clusters <- eclust(x = datos, FUNcluster = "kmeans", k = 5, seed = 123,
+                      hc_metric = "euclidean", nstart = 50, graph = FALSE)
 
 fviz_silhouette(sil.obj = km_clusters, print.summary = TRUE, palette = "jco",
                 ggtheme = theme_classic()) 
@@ -656,7 +654,7 @@ head(km_clusters$silinfo$widths)
 
 # PAM
 
-pam_clusters <- eclust(x = datos, FUNcluster = "pam", k = 4, seed = 123,
+pam_clusters <- eclust(x = datos, FUNcluster = "pam", k = 5, seed = 123,
                       hc_metric = "manhattan", nstart = 50, graph = FALSE)
 
 fviz_silhouette(sil.obj = pam_clusters, print.summary = TRUE, palette = "jco",
@@ -667,6 +665,19 @@ pam_clusters$silinfo$clus.avg.widths
 
 # Coeficiente silhouette para cada observación
 head(pam_clusters$silinfo$widths)
+
+
+# COMPARANDO ALGORITMOS CON CLVALID
+
+install.packages("clValid")
+library("clValid")
+resamps <- clValid(
+  obj        = datos,
+  nClust     = 2:6,
+  clMethods  = c("hierarchical", "kmeans", "pam"),
+  validation = c("stability", "internal")
+)
+summary(resamps)
 
 
 
