@@ -26,8 +26,23 @@ str(marks)
 # Comprobar si hay alguna fila incompleta
 any(!complete.cases(marks))
 
+# Datos ausentes por variable
+map_dbl(datos, .f = function(x){sum(is.na(x))})
+
 # Eliminamos la columnas Ids
 marks$idStudent <- NULL
+
+
+# 
+
+marks %>%
+  group_by(variable) %>% 
+  summarize(porcentaje_NA = 100 * sum(is.na(valor)) / length(valor)) %>%
+  ggplot(aes(x = reorder(variable, desc(porcentaje_NA)), y = porcentaje_NA)) +
+  geom_col() +
+  labs(title = "Porcentaje valores ausentes por variable",
+       x = "Variable", y = "Porcentaje NAs") +
+  theme_bw()
 
 
 # ------------------------------------------------------------------
@@ -545,6 +560,48 @@ featurePlot(x = filter_marks[, regVar],
 # Si cargamos como read.csv en vez de read.csv2, marca los nulos como NA y si los muestra bien.
 
 
+#----------------------------------------------
+# PRUEBA 4, HACEMOS LO MISMO DE DIFERENTE FORMA
+#-----------------------------------------------
+
+# Analizamos previamente la relación de variables para comprobar la linealidad entre ellas
+install.packages("psych")
+install.packages("GGally")
+library(psych)
+library(GGally)
+
+# Seleccionamos los datos
+filter_marks <- marks  %>%  select(T1, T2, T3,T4)
+
+# Distribución de cada variable mediante histogramas y correlación
+multi.hist(x = filter_marks, dcol = c("blue", "red"), dlty = c("dotted", "solid"),
+           main = "")
+
+ggpairs(filter_marks, lower = list(continuous = "smooth"),
+        diag = list(continuous = "barDiag"), axisLabels = "none")
+
+
+# Generamos el modelo
+model_ln <- lm(T4 ~ ., data = filter_marks )
+summary(model_ln)
+
+# R^2 = 0.056, mal modelo
+
+
+# Vamos a analizar ahora si podemos predecir los resultados finales en base a T1,T2,T3,T4
+filter_marks <- marks  %>%  select(T1, T2, T3,T4, Marks)
+multi.hist(x = filter_marks, dcol = c("blue", "red"), dlty = c("dotted", "solid"),
+           main = "")
+
+ggpairs(filter_marks, lower = list(continuous = "smooth"),
+        diag = list(continuous = "barDiag"), axisLabels = "none")
+
+model_ln <- lm(Marks ~ ., data = filter_marks )
+summary(model_ln)
+
+# R^2 = 0.5785, MEJOR QUE ANTES.
+
+
 # ------------------------------------------------------------------------
 # PRUEBA 3: ANALISIS NO SUPERVISADO
 # Clustering
@@ -636,7 +693,7 @@ fviz_cluster(object = pam_clusters, data = datos, ellipse.type = "t",
 # Utilizamos las funciones eclust() y fviz_silhouette() del paquete factoextra() 
 # para de forma sencilla los coeficientes de Silhoutte 
 # La función eclust(), con FUNcluster permite, como CARET, aplicar varios algoritmos de clustering
-# Internamente llama a las funciones kmeans, hclust, pam, etc
+
 
 # KMEANS
 km_clusters <- eclust(x = datos, FUNcluster = "kmeans", k = 5, seed = 123,
