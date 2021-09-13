@@ -11,8 +11,9 @@ ls()
 rm(list = ls()) 
 ls()
 
-# Evaluate test notes
+# Cargamos y limpiamos nulos
 marks <- read.csv("./data/marks.csv", sep=",", head = TRUE)
+marks[is.na(marks)] <- 0
 
 # Comprobamos dataset
 head(marks)
@@ -600,6 +601,58 @@ model_ln <- lm(Marks ~ ., data = filter_marks )
 summary(model_ln)
 
 # R^2 = 0.5785, MEJOR QUE ANTES.
+
+
+
+# ------------------------------------------------------------------------
+# PRUEBA 5: APLICAMOS REGRESIÓN NO PARAMÉTRICA con Knn
+# ------------------------------------------------------------------------
+library(caret)
+
+particiones  <- 10
+repeticiones <- 5
+hiperparametros <- data.frame(k = c(1, 2, 5, 10, 15, 20, 30, 50))
+
+set.seed(123)
+seeds <- vector(mode = "list", length = (particiones * repeticiones) + 1)
+for (i in 1:(particiones * repeticiones)) {
+  seeds[[i]] <- sample.int(1000, nrow(hiperparametros)) 
+}
+seeds[[(particiones * repeticiones) + 1]] <- sample.int(1000, 1)
+
+control_train <- trainControl(method = "repeatedcv", number = particiones,
+                              repeats = repeticiones, seeds = seeds,
+                              returnResamp = "final", verboseIter = FALSE,
+                              allowParallel = TRUE)
+
+
+set.seed(342)
+
+# Caso 1, predecir T4
+filter_marks <- marks  %>%  select(T1, T2, T3,T4)
+knn_model <- train(T4 ~ ., data = filter_marks,
+                    method = "knn",
+                    tuneGrid = hiperparametros,
+                    metric = "RMSE",
+                    trControl = control_train)
+knn_model
+plot(knn_model, type = 'l', lwd = 2)
+
+
+# Caso 2, predecir Marks
+filter_marks <- marks  %>%  select(T1, T2, T3, T4, Marks)
+knn_model <- train(Marks ~ ., data = filter_marks,
+                    method = "knn",
+                    tuneGrid = hiperparametros,
+                    metric = "RMSE",
+                    trControl = control_train)
+
+knn_model
+plot(knn_model, type = 'l', lwd = 2)
+
+
+#pred <- predict(knn_model, training)
+#RMSE(pred, filter_marks$Marks)
 
 
 # ------------------------------------------------------------------------
