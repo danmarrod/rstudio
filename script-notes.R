@@ -11,50 +11,51 @@ ls()
 rm(list = ls()) 
 ls()
 
-# Cargamos y limpiamos nulos
+# Cargamos dataset
 marks <- read.csv("./data/marks.csv", sep=",", head = TRUE)
-marks[is.na(marks)] <- 0
 
 # Comprobamos dataset
 head(marks)
 dim(marks)
 str(marks)
 
+
 # ------------------------------------------------------------------
-# ANÁLISIS EXPLORATORIO
+# LIMPIEZA DE DATOS
 # ------------------------------------------------------------------
 
 # Comprobar si hay alguna fila incompleta
 any(!complete.cases(marks))
 
+# Establecemos los valores ausentes a 0
+marks[is.na(marks)] <- 0
+
 # Datos ausentes por variable
 map_dbl(datos, .f = function(x){sum(is.na(x))})
 
-# Eliminamos la columnas Ids
+# Normalizamos decimales
+marks <- marks %>% mutate(across(where(is.numeric), round, 3))
+
+# Eliminamos la columna Ids anonimizada
 marks$idStudent <- NULL
+filter_marks <- marks
 
-
-# 
-
-marks %>%
-  group_by(variable) %>% 
-  summarize(porcentaje_NA = 100 * sum(is.na(valor)) / length(valor)) %>%
-  ggplot(aes(x = reorder(variable, desc(porcentaje_NA)), y = porcentaje_NA)) +
-  geom_col() +
-  labs(title = "Porcentaje valores ausentes por variable",
-       x = "Variable", y = "Porcentaje NAs") +
-  theme_bw()
+# Transformamos en Aprobado/Suspenso en función de la nota de T4
+# filter_marks_del$T4 <- factor(filter_marks_del$T4 > 0.25, labels = c("Aprobado", "suspenso"))
 
 
 # ------------------------------------------------------------------
 # VISUALIZACIÓN DEL DATASET
 # ------------------------------------------------------------------
 
-# Correlación
-library(ggplot2)
+# Cargamos principales librerías
 install.packages("tidyverse")
+library(ggplot2)
 library(tidyverse)
+library(caret)
 
+
+# Correlación
 filter_marks %>%
   filter(Flow == "SI") %>%
   select_if(is.numeric) %>%
@@ -69,7 +70,7 @@ filter_marks %>%
   geom_density(show.legend = FALSE) + 
   facet_wrap(~ metric, scales = "free")
 
-# TODO: No termina de visualizar adecuadamente. Engorrosa.
+# Resultados parciales T1-T4. Un poco engorrosa.
 install.packages("AppliedPredictiveModeling")
 library(AppliedPredictiveModeling)
 transparentTheme(trans = .4)
@@ -213,7 +214,7 @@ radarchart( data, axistype=1,
 
 
 # ---------------------------------------------------------------------------------------------
-# PRUEBA 1: VAMOS A PREDECIR LOS VALORES DE LA CLASE PROACTIVE
+# PRUEBA 1: VAMOS A PREDECIR LOS VALORES DE LA CLASE FLOW
 # Clasificación binaria
 # ---------------------------------------------------------------------------------------------
 
@@ -429,10 +430,10 @@ draw_confusion_matrix(cm)
 
 
 
-# -------------------------------------------------------------------------
-# PRUEBA 2: Predicción de la nota final en base a la nota parcial de iTop
+# ------------------------------------------------------------------------------------
+# PRUEBA 2: Predicción de la nota final (Marks) en base a la nota parcial de iTop(T4)
 # Regresión lineal simple
-# -------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------
 
 filter_marks <- marks[,c(7,28), drop=FALSE]
 
@@ -463,7 +464,7 @@ summary(lm_filter_marks)$r.squared
 
 # ------------------------------------------------------------------------
 # PRUEBA 3: VAMOS A PREDECIR LOS VALORES DE T4 en BASE A T1, T2, T3
-# Regresión multilineal
+# Regresión lineal multivariable
 # ------------------------------------------------------------------------
 
 # Filtramos el dataset con las columnas que nos interesan para optimizar los cálculos
@@ -656,7 +657,7 @@ plot(knn_model, type = 'l', lwd = 2)
 
 
 # ------------------------------------------------------------------------
-# PRUEBA 3: ANALISIS NO SUPERVISADO
+# PRUEBA 6: ANALISIS NO SUPERVISADO
 # Clustering
 # ------------------------------------------------------------------------
 
@@ -788,35 +789,3 @@ resamps <- clValid(
   validation = c("stability", "internal")
 )
 summary(resamps)
-
-
-
-# Creamos un clúster como en clase
------------------------------------
-km_puntos <- kmeans(cluster_marks, center=3, nstar=20)
-km_puntos$cluster
-print(km_puntos)
-plot(cluster_marks, col=km_puntos$cluster, main="Tres clusters")    
-
-
-# Vamos a analizar primeramente la dimensionalidad de las variables y si podemos reducirlas con PCA
-# TODO: Profundizar en esta parte si da tiempo
-head(cluster_marks)
-str(cluster_marks)
-cluster_marks
-par(mar=c(1,1,1,1))
-plot(cluster_marks)
-
-iris_pca <- prcomp(cluster_marks[1:10], scale=FALSE, center=TRUE)
-iris_pca
-
-summary(iris_pca)
-plot(iris_pca)
-biplot(iris_pca)
-
-iris_pca_escalado <- prcomp(cluster_marks[1:10], scale=TRUE, center=TRUE)
-summary(iris_pca_escalado)
-biplot(iris_pca_escalado)
-
-
-# 
