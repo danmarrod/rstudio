@@ -250,7 +250,7 @@ group_folds <- groupKFold(training$Professor, k = 4)
 # Sustituimos para poder usar Resample por CV, 10-fold cross-validation
 # Añadimos las muestras
 myControl_clas <- trainControl(
-  index = group_folds,
+  #index = group_folds,
   method = "CV",
   number = 10,
   summaryFunction = twoClassSummary,
@@ -266,6 +266,7 @@ model_class_glm <- train(Flow~ ., training,
                         trControl=myControl_clas)
 
 print(model_class_glm)
+model_class_glm
 
 # Probamos con un segundo algoritmo
 # Esta técnica es muy útil para conjunto de datos con un elevado número de variables predictoras y pocos valores
@@ -329,7 +330,6 @@ dotplot(resamps, metric="ROC")
 xyplot(resamps, what = "BlandAltman")
 splom(resamps)
 
-# TODO: En las dos últimas apararecen pocas muestras, es extraño. Investigar.
 
 # Como último paso, y en base al mejor modelo realizamos la predicción para ver el rendimiento real
 prediction <- predict(model_class_nbayes_tun, testing, type = "prob")
